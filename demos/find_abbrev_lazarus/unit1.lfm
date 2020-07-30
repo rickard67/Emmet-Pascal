@@ -1,0 +1,44 @@
+object Form1: TForm1
+  Left = 389
+  Height = 169
+  Top = 158
+  Width = 457
+  BorderStyle = bsDialog
+  Caption = 'Test finding abbreviation'
+  ClientHeight = 169
+  ClientWidth = 457
+  Position = poScreenCenter
+  LCLVersion = '2.1.0.0'
+  object Edit1: TEdit
+    Left = 8
+    Height = 27
+    Top = 32
+    Width = 432
+    OnChange = Edit1Change
+    TabOrder = 0
+  end
+  object Edit2: TEdit
+    Left = 8
+    Height = 27
+    Top = 96
+    Width = 432
+    ReadOnly = True
+    TabOrder = 1
+  end
+  object Label1: TLabel
+    Left = 8
+    Height = 17
+    Top = 9
+    Width = 338
+    Caption = 'full "editor" line, to find abbreviation from line end'
+    ParentColor = False
+  end
+  object Label2: TLabel
+    Left = 8
+    Height = 17
+    Top = 72
+    Width = 129
+    Caption = 'found abbreviation'
+    ParentColor = False
+  end
+end

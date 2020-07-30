@@ -1,0 +1,6 @@
+License for Emmet unit and its data files:
+Free to use in non-commercial software.
+Needs donation to Rickard Johansson for commercial use, see https://rj-texted.se/ .
+
+License for EmmetHelper unit and demos:
+MPL 2.0 or LGPL.

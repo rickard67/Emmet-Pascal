@@ -1,0 +1,93 @@
+object Form1: TForm1
+  Left = 389
+  Height = 450
+  Top = 158
+  Width = 600
+  Caption = 'Emmet test'
+  ClientHeight = 450
+  ClientWidth = 600
+  OnCreate = FormCreate
+  Position = poScreenCenter
+  LCLVersion = '2.1.0.0'
+  object Label1: TLabel
+    Left = 8
+    Height = 15
+    Top = 8
+    Width = 71
+    Caption = 'Abbreviation:'
+    ParentColor = False
+  end
+  object EditInput: TEdit
+    AnchorSideLeft.Control = Label1
+    AnchorSideTop.Control = Label1
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 8
+    Height = 23
+    Top = 29
+    Width = 586
+    Anchors = [akTop, akLeft, akRight]
+    BorderSpacing.Top = 6
+    BorderSpacing.Right = 6
+    TabOrder = 0
+  end
+  object ButtonExpand: TButton
+    AnchorSideLeft.Control = Label1
+    AnchorSideTop.Control = EditInput
+    AnchorSideTop.Side = asrBottom
+    Left = 8
+    Height = 25
+    Top = 58
+    Width = 150
+    AutoSize = True
+    BorderSpacing.Top = 6
+    Caption = 'Expand'
+    Constraints.MinWidth = 150
+    Default = True
+    OnClick = ButtonExpandClick
+    TabOrder = 1
+  end
+  object MemoOut: TMemo
+    AnchorSideLeft.Control = Label1
+    AnchorSideTop.Control = ButtonExpand
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 8
+    Height = 355
+    Top = 89
+    Width = 586
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Top = 6
+    BorderSpacing.Right = 6
+    BorderSpacing.Bottom = 6
+    TabOrder = 2
+  end
+  object ComboSyntax: TComboBox
+    AnchorSideTop.Control = EditInput
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 464
+    Height = 23
+    Top = 58
+    Width = 130
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 6
+    BorderSpacing.Right = 6
+    ItemHeight = 15
+    ItemIndex = 0
+    Items.Strings = (
+      'html'
+      'css'
+      'xsl'
+      'svg'
+    )
+    Style = csDropDownList
+    TabOrder = 3
+    Text = 'html'
+  end
+end
