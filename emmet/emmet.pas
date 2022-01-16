@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      30-June-2020
-Version:   1.18
+Date:      16-Jan-2022
+Version:   1.19
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -38,6 +38,9 @@ Using the overloaded version you can set some expand options.
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.19
+    * Fixed space issues when adding class or id in empty tags.
 
 Version 1.18
     * Single quotes in custom attributes should work now. E.g. td[title='Hello world!' colspan=3]
@@ -481,7 +484,6 @@ function TEmmet.ExpandAbbreviation(AString: string; const ASyntax, ASelText:
     TExpandOptions): string;
 var
   typ: string;
-  n: Integer;
 begin
   FExpandOptions := opt;
   FTagList.Clear;
@@ -1017,9 +1019,19 @@ begin
       if (sa <> '') then
         InsertAttribute(sa,Result,i);
       if (sId <> '') then
-        Insert(#32 + sId,Result,i);
+      begin
+        if (ch <> '/') then
+          Insert(#32 + sId,Result,i)
+        else
+          Insert(sId + #32,Result,i)
+      end;
       if (sClass <> '') then
-        Insert(#32 + sClass,Result,i);
+      begin
+        if (ch <> '/') then
+          Insert(#32 + sClass,Result,i)
+        else
+          Insert(sClass + #32,Result,i);
+      end;
       Exit;
     end;
     Inc(i);
@@ -1376,7 +1388,7 @@ begin
   Result := s;
   wf := FAbbreviations.ReadString(ASyntax,'filters','');
   i := Pos('|',s);
-  if (i = 0) and (wf = '') then Exit;
+  if (i = 0) or (wf = '') then Exit;
 
   if i > 0 then
     Result := Copy(s,1,i-1);
