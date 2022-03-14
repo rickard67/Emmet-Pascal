@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      16-Jan-2022
-Version:   1.19
+Date:      14-Mar-2022
+Version:   1.20
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -38,6 +38,10 @@ Using the overloaded version you can set some expand options.
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.20
+    * Added support for standard lorem generator abreviations. E.g. p*4>lorem10
+    * A plain "lorem" statement should expand into a "Lorem ipsum ..." text. E.g. lorem120
 
 Version 1.19
     * Fixed space issues when adding class or id in empty tags.
@@ -216,6 +220,9 @@ type
     FFilenameSnippets: string;
     FLorem: TStringList;
     FFilters: TStringList;
+    FLoremNr: Integer;
+    FLoremStart: Boolean;
+    FLoremText: string;
     FMultiCursorTabs: Boolean;
     FMultiplicationMax: Integer;
     FRecursiveIndex: Integer;
@@ -239,6 +246,7 @@ type
     function ExtractFilters(s: string; const ASyntax: string): string;
     function ExtractUserAttributes(const sAttribute: string): string;
     function FormatSelection(const s: string; const ind: Integer): string;
+    function HandleLorem(const s: string; const indent: Integer): Integer;
     function HasTabStopsAndCursors(const src: string): Boolean;
     function InsertLoremString(const sub, s: string; const indent: Integer; const bRemoveBrackets: Boolean = False): string;
     function InsertSelection(s: string; const bOneLine: Boolean = False): string;
@@ -251,6 +259,7 @@ type
         Integer): string;
     procedure ResolveCursorPositions(var src: string);
     function ResolveTabStopsIndex(s: string): string;
+    function WrapLoremText(const s: string; const indent: Integer): string;
   public
     constructor Create(const ASnippetsFile, ALoremFile: string); overload;
     destructor Destroy; override;
@@ -263,6 +272,7 @@ type
         Boolean;
     function GetSnippetNames(const ASyntax: string; const AList: TStringList):
         Boolean;
+    function ResolveEmptyTag: string;
     property MultiplicationMax: Integer read FMultiplicationMax write FMultiplicationMax;
   end;
 
@@ -308,6 +318,7 @@ begin
   FTagInlineLevel.DelimitedText := cInlineLevel;
 
   FLorem := TStringList.Create;
+  FLoremStart := True;
 end;
 
 destructor TEmmet.Destroy;
@@ -325,31 +336,6 @@ function TEmmet.AddTag(s: string; const sAttribute, sId, sClass, sText: string;
 var
   w,st: string;
   n: Integer;
-
-  function ResolveEmptyTag: string;
-  var
-    w: string;
-  begin
-    if FTagList.Count > 0 then
-    begin
-      w := FTagList[FTagList.Count-1];
-      if w <> '' then
-        w := Copy(w,3,Length(w)-3);
-    end;
-    if FAbbreviations.ValueExists('elementmap', w) then
-    begin
-      Result := FAbbreviations.ReadString('elementmap', w, '');
-    end
-    else if not FExpandOptions.AlwaysAddNewLine and (FTagInlineLevel.IndexOf(w) >= 0) then
-    begin
-      Result := 'span';
-    end
-    else
-    begin
-      Result := 'div';
-    end;
-  end;
-
 begin
   if (s <> '') or (sId <> '') or (sClass <> '') or (sAttribute <> '') then
   begin
@@ -396,6 +382,12 @@ begin
       w := '<' + s + '>'
     else if (w <> '') and (w[Length(w)] <> '>') then
       w := w + '>';
+
+    if FLoremText <> '' then
+    begin
+      w := w + FLoremText;
+      FLoremText := '';
+    end;
     FTagList.Add('</'+s+'>');
     Result := st + w + sText;
   end
@@ -445,20 +437,33 @@ end;
 function TEmmet.CreateLoremString(const nr: Integer): string;
 var
   s,sz: string;
-  x,z,ln: Integer;
+  ns,x,z,ln: Integer;
   bFirst: Boolean;
 begin
-  Result := 'Lorem Ipsum ';
+  if FLoremStart then
+  begin
+    ns := 2;
+    Result := 'Lorem ipsum ';
+    bFirst := False;
+  end
+  else
+  begin
+    ns := 0;
+    Result := '';
+    bFirst := True;
+  end;
+  FLoremStart := False;
+  FLoremNr := nr;
   if FLorem.Count <= 0 then
   begin
     sz := FFilenameLorem;
     if FileExists(sz) then
       FLorem.LoadFromFile(sz);
   end;
-  bFirst := False;
+
   sz := ',.;!?';
   ln := Length(Result);
-  for x := 2 to nr - 1 do
+  for x := ns to nr - 1 do
   begin
     s := FLorem[Random(FLorem.Count - 1)];
     if bFirst and (Ord(S[1]) > 90) then
@@ -485,6 +490,7 @@ function TEmmet.ExpandAbbreviation(AString: string; const ASyntax, ASelText:
 var
   typ: string;
 begin
+  FLoremStart := True;
   FExpandOptions := opt;
   FTagList.Clear;
   FRecursiveIndex := 0;
@@ -630,7 +636,7 @@ end;
 function TEmmet.ExpandTagAbbrev(sAbbrev: string; const nIndent: Integer = 0):
     string;
 var
-  indx,npos,ind: Integer;
+  n,indx,npos,ind: Integer;
   ch: Char;
   indent: Integer;
   tagListCount: Integer;
@@ -860,6 +866,7 @@ begin
 
       '>': // child operator
       begin
+        FLoremText := '';
         ind := indent;
         if indx > npos then
         begin
@@ -870,7 +877,14 @@ begin
         npos := indx + 1;
 
         Inc(indx);
+        n := HandleLorem(Copy(sAbbrev,indx,Length(sAbbrev)), indent);
+        if n > 0 then Inc(indx, n);
         s := s + AddChild(Copy(sAbbrev,indx,Length(sAbbrev)), w);
+        if (indx > Length(sAbbrev)) and (n > 0) then
+        begin
+          s := s + FLoremText;
+          FLoremText := '';
+        end;
         npos := Length(sAbbrev) + 1;
         indx := npos;
         if FExpandOptions.IndentChilds then
@@ -1075,6 +1089,7 @@ var
   sText,sId,sClass,sAttr: string;
   ls: TStringList;
   bDone: Boolean;
+  n: Integer;
 
   function ExtractText(const s: string; out sText: string): string;
   var
@@ -1302,6 +1317,13 @@ begin
   begin
     Result := s;
     AddToTagList(s,sText);
+    Exit;
+  end;
+
+  n := HandleLorem(AString, indent);
+  if (n > 0) then
+  begin
+    Result := FLoremText;
     Exit;
   end;
 
@@ -1608,6 +1630,37 @@ begin
   Result := AList.Count > 0;
 end;
 
+function TEmmet.HandleLorem(const s: string; const indent: Integer): Integer;
+var
+  i,n: Integer;
+  w: string;
+begin
+  Result := 0;
+
+  // Handle lorem abreviation
+  if Pos('lorem',s) = 1 then
+  begin
+    i := 6;
+    while (i <= Length(s)) and CharInSet(s[i],['0'..'9']) do Inc(i);
+    if i > 6 then
+    begin
+      w := Copy(s,6,i-6);
+      n := StrToInt(w);
+      FLoremText := CreateLoremString(n);
+      if FExpandOptions.Wordwrap then
+        FLoremText := WrapLoremText(FLoremText, indent);
+      Result := i-1;
+    end
+    else
+    begin
+      FLoremText := CreateLoremString(30);
+      if FExpandOptions.Wordwrap then
+        FLoremText := WrapLoremText(FLoremText, indent);
+      Result := i-1;
+    end;
+  end;
+end;
+
 function TEmmet.HasTabStopsAndCursors(const src: string): Boolean;
 begin
   Result := (FTabStopIndex > 0) and (Pos('|',src) > 0);
@@ -1616,9 +1669,8 @@ end;
 function TEmmet.InsertLoremString(const sub, s: string; const indent: Integer; const bRemoveBrackets: Boolean = False):
     string;
 var
-    w,ws,wr,wt,wn: string;
+    w,wn: string;
     n,m,nr,len: Integer;
-    slen: Integer;
   begin
     Result := s;
     nr := 30;
@@ -1626,47 +1678,18 @@ var
 
     if m = 0 then Exit;
 
-    slen := Length(sub);
-    n := m + slen;
+    len := Length(sub);
+    n := m + len;
     while (n <= Length(s)) and CharInSet(s[n], ['0'..'9']) do Inc(n);
-    if n > m + slen then
+    if n > m + len then
     begin
-      wn := Copy(s,m+slen,n-m-slen);
+      wn := Copy(s,m+len,n-m-len);
       nr := StrToIntDef(wn, 30);
     end;
     w := CreateLoremString(nr);
 
     if FExpandOptions.Wordwrap then
-    begin
-      wt := '';
-      wr := '';
-      wt := StringOfChar(#9, indent);
-      len := FExpandOptions.WordwrapAt - indent * FExpandOptions.TabSize;
-      n := 1;
-      m := 1;
-      while n <= Length(w) do
-      begin
-        if Length(w) - m + 1 > len then
-        begin
-          // Wrap text
-          n := m + len;
-          while (n > m) and not CharInSet(w[n],[#9,#32,#160,',','.',')','>',':',']','}']) do Dec(n);
-          ws := Trim(Copy(w,m,n-m+1));
-          if wr <> '' then wr := wr + wt;
-          wr := wr + ws + #13#10;
-          m := n + 1;
-        end
-        else
-        begin
-          ws := Trim(Copy(w,m,Length(w)-m+1));
-          if wr <> '' then wr := wr + wt;
-          wr := wr + ws;
-          Break;
-        end;
-        len := FExpandOptions.WordwrapAt - Length(wt) * FExpandOptions.TabSize;
-      end;
-      w := wr;
-    end;
+      w := WrapLoremText(w, indent);
 
     if bRemoveBrackets then
       Result := StringReplace(s,'{' + sub + wn + '}',w,[])
@@ -2046,7 +2069,7 @@ function TEmmet.ProcessTagMultiplication(const AString: string; const index,
 var
   i,n,num,numlen: Integer;
   nStart,nIndex,nInc: Integer;
-  s,w: string;
+  s,w,st,wt: string;
   bAddSelection: Boolean;
 
   function GetExpression(const ws: string; n, i: Integer): string;
@@ -2173,10 +2196,19 @@ begin
 
   if num > 0 then
   begin
+    if FExpandOptions.IndentChilds then
+      st := StringOfChar(#9,indent)
+    else
+      st := '';
     nIndex := nStart;
     while num > 0 do
     begin
       w := ExpandTagAbbrev(s,indent);
+      if w = '' then
+      begin
+        wt := ResolveEmptyTag;
+        w := st + '<' + wt + '>' + FLoremText + '</' + wt + '>';
+      end;
       if bAddSelection then
         w := InsertSelection(w, True);
       w := ReplaceVariables(w, nIndex);
@@ -2186,6 +2218,7 @@ begin
         Result := Result + w;
       Dec(num);
       Inc(nIndex,nInc);
+      FLoremText := CreateLoremString(FLoremNr);
     end;
   end;
 end;
@@ -2203,6 +2236,30 @@ begin
     sn := '${' + IntToStr(nr) + '}';
     src := StringReplace(src, '|', sn, []);
     n := Pos('|',src);
+  end;
+end;
+
+function TEmmet.ResolveEmptyTag: string;
+var
+  w: string;
+begin
+  if FTagList.Count > 0 then
+  begin
+    w := FTagList[FTagList.Count-1];
+    if w <> '' then
+      w := Copy(w,3,Length(w)-3);
+  end;
+  if FAbbreviations.ValueExists('elementmap', w) then
+  begin
+    Result := FAbbreviations.ReadString('elementmap', w, '');
+  end
+  else if not FExpandOptions.AlwaysAddNewLine and (FTagInlineLevel.IndexOf(w) >= 0) then
+  begin
+    Result := 'span';
+  end
+  else
+  begin
+    Result := 'div';
   end;
 end;
 
@@ -2242,7 +2299,6 @@ begin
   UniqueString(Result); // This is needed in Lazarus (Free Pascal)
 
   nr := 0;
-  index := 0;
   n := Pos('${', s);
   while n > 0 do
   begin
@@ -2275,6 +2331,42 @@ begin
     n := PosEx('${', s, m+1);
   end;
   Inc(FTabStopIndex, nr);
+end;
+
+function TEmmet.WrapLoremText(const s: string; const indent: Integer): string;
+var
+  wt,wr,ws: string;
+  n,m,len: Integer;
+begin
+  Result := s;
+  wt := '';
+  wr := '';
+  wt := StringOfChar(#9, indent);
+  len := FExpandOptions.WordwrapAt - indent * FExpandOptions.TabSize;
+  n := 1;
+  m := 1;
+  while n <= Length(s) do
+  begin
+    if Length(s) - m + 1 > len then
+    begin
+      // Wrap text
+      n := m + len;
+      while (n > m) and not CharInSet(s[n],[#9,#32,#160,',','.',')','>',':',']','}']) do Dec(n);
+      ws := Trim(Copy(s,m,n-m+1));
+      if wr <> '' then wr := wr + wt;
+      wr := wr + ws + #13#10;
+      m := n + 1;
+    end
+    else
+    begin
+      ws := Trim(Copy(s,m,Length(s)-m+1));
+      if wr <> '' then wr := wr + wt;
+      wr := wr + ws;
+      Break;
+    end;
+    len := FExpandOptions.WordwrapAt - Length(wt) * FExpandOptions.TabSize;
+  end;
+  Result := wr;
 end;
 
 end.
