@@ -39,6 +39,9 @@ Using the overloaded version you can set some expand options.
 (*------------------------------------------------------------------------------------------
 Version updates and changes
 
+Version 1.21
+    * Fixed a few issues with Lorem ipsum generation.
+
 Version 1.20
     * Added support for standard lorem generator abreviations. E.g. p*4>lorem10
     * A plain "lorem" statement should expand into a "Lorem ipsum ..." text. E.g. lorem120
@@ -220,6 +223,7 @@ type
     FFilenameSnippets: string;
     FLorem: TStringList;
     FFilters: TStringList;
+    FLoremFound: Boolean;
     FLoremNr: Integer;
     FLoremStart: Boolean;
     FLoremText: string;
@@ -250,6 +254,7 @@ type
     function HasTabStopsAndCursors(const src: string): Boolean;
     function InsertLoremString(const sub, s: string; const indent: Integer; const bRemoveBrackets: Boolean = False): string;
     function InsertSelection(s: string; const bOneLine: Boolean = False): string;
+    function IsLoremValid(const s: string): Boolean;
     function PostProcessFilters(s: string): string;
     function ProcessTagAbbrev(const AString: string; const index, len, indent:
         Integer): string;
@@ -491,6 +496,9 @@ var
   typ: string;
 begin
   FLoremStart := True;
+  FLoremText := '';
+  FLoremNr := 0;
+  FLoremFound := False;
   FExpandOptions := opt;
   FTagList.Clear;
   FRecursiveIndex := 0;
@@ -1640,6 +1648,7 @@ begin
   // Handle lorem abreviation
   if Pos('lorem',s) = 1 then
   begin
+    if not IsLoremValid(s) then Exit;
     i := 6;
     while (i <= Length(s)) and CharInSet(s[i],['0'..'9']) do Inc(i);
     if i > 6 then
@@ -1647,6 +1656,7 @@ begin
       w := Copy(s,6,i-6);
       n := StrToInt(w);
       FLoremText := CreateLoremString(n);
+      FLoremFound := True;
       if FExpandOptions.Wordwrap then
         FLoremText := WrapLoremText(FLoremText, indent);
       Result := i-1;
@@ -1654,6 +1664,7 @@ begin
     else
     begin
       FLoremText := CreateLoremString(30);
+      FLoremFound := True;
       if FExpandOptions.Wordwrap then
         FLoremText := WrapLoremText(FLoremText, indent);
       Result := i-1;
@@ -1813,6 +1824,27 @@ begin
       ws := #13#10 + FormatSelection(wsel, ind);
       Result := Copy(s,1,n) + ws + wt + Copy(s,n+1,Length(s));
     end;
+  end;
+end;
+
+function TEmmet.IsLoremValid(const s: string): Boolean;
+var
+  i,len: Integer;
+begin
+  Result := True;
+  i := 6;
+  len := Length(s);
+  while i <= len do
+  begin
+    if CharInSet(s[i], ['0'..'9']) then
+    begin
+      Inc(i);
+      Continue;
+    end;
+
+    if not CharInSet(s[i], ['>','+','*','^','[','{','(']) then Result := False;
+
+    Break;
   end;
 end;
 
@@ -2218,7 +2250,8 @@ begin
         Result := Result + w;
       Dec(num);
       Inc(nIndex,nInc);
-      FLoremText := CreateLoremString(FLoremNr);
+      if FLoremFound then
+        FLoremText := CreateLoremString(FLoremNr);
     end;
   end;
 end;
