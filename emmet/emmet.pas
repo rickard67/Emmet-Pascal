@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      14-Mar-2022
-Version:   1.20
+Date:      22-Aug-2022
+Version:   1.22
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -34,10 +34,22 @@ Using the overloaded version you can set some expand options.
     rOptions.AddSlashToEmptyTags := False;
     sExpanded := FEmmet.ExpandAbbreviation(sAbbr, sSyntax, sSelText, sSection, bMultiCursorTabs, rOptions);
 
+Validate HTML tags
+    You can add a list of all valid HTML tags. Use this to avoid expanding illegal HTML tags.
+
+    E.g. p{tab} should be expanded to <p></p>, but n{tab} should not be expanded to <n></n>.
+
+    Use this function to add your list:
+
+        AddHTMLTagListForValidation(const AList: TStringList);
+
 
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.22
+    * Added a new HTML tag list that can be used for validation. See "Validate HTML tags" above in the section "Usage".
 
 Version 1.21
     * Fixed a few issues with Lorem ipsum generation.
@@ -223,6 +235,7 @@ type
     FFilenameSnippets: string;
     FLorem: TStringList;
     FFilters: TStringList;
+    FHTMLTagList: TStringList;
     FLoremFound: Boolean;
     FLoremNr: Integer;
     FLoremStart: Boolean;
@@ -268,6 +281,7 @@ type
   public
     constructor Create(const ASnippetsFile, ALoremFile: string); overload;
     destructor Destroy; override;
+    procedure AddHTMLTagListForValidation(const AList: TStringList);
     function ExpandAbbreviation(AString: string; const ASyntax, ASelText: string;
         out ASection: string; out bMultiCursorTabs: Boolean): string; overload;
     function ExpandAbbreviation(AString: string; const ASyntax, ASelText: string;
@@ -277,6 +291,7 @@ type
         Boolean;
     function GetSnippetNames(const ASyntax: string; const AList: TStringList):
         Boolean;
+    function IsTagValid(const s: string): Boolean;
     function ResolveEmptyTag: string;
     property MultiplicationMax: Integer read FMultiplicationMax write FMultiplicationMax;
   end;
@@ -307,6 +322,7 @@ constructor TEmmet.Create(const ASnippetsFile, ALoremFile: string);
 begin
   inherited Create;
 
+  FHTMLTagList := nil;
   FMultiplicationMax := cMultiplicationMax;
 
   FFilenameSnippets := ASnippetsFile;
@@ -334,6 +350,20 @@ begin
   FTagList.Free;
   FTagInlineLevel.Free;
   FLorem.Free;
+  if Assigned(FHTMLTagList) then FHTMLTagList.Free;
+end;
+
+procedure TEmmet.AddHTMLTagListForValidation(const AList: TStringList);
+begin
+  if not Assigned(AList) or (AList.Count = 0) then Exit;
+
+  // Ignore and exit if list is already populated
+  if Assigned(FHTMLTagList) then Exit;
+
+  // Create a sorted list of added tags
+  FHTMLTagList := TStringList.Create;
+  FHTMLTagList.Sorted := True;
+  FHTMLTagList.Assign(AList);
 end;
 
 function TEmmet.AddTag(s: string; const sAttribute, sId, sClass, sText: string;
@@ -1335,6 +1365,9 @@ begin
     Exit;
   end;
 
+  // Check if tag is valid?
+  if not IsTagValid(s) then Exit;
+
   Result := AddTag(s,'','','',sText,indent);
   Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
   Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
@@ -1846,6 +1879,19 @@ begin
 
     Break;
   end;
+end;
+
+function TEmmet.IsTagValid(const s: string): Boolean;
+var
+  n: Integer;
+begin
+  Result := True;
+
+  // Only check the tag against a list if it's available.
+  // Otherwise, return true.
+  if not Assigned(FHTMLTagList) then Exit;
+
+  Result := FHTMLTagList.Find(Lowercase(s),n);
 end;
 
 function TEmmet.PostProcessFilters(s: string): string;
