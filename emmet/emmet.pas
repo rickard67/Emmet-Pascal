@@ -2,7 +2,7 @@
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
 Date:      22-Aug-2022
-Version:   1.22
+Version:   1.23
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -47,6 +47,9 @@ Validate HTML tags
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.23
+    * Minor change for faster sorting of the HTML tag validation list and no case check.
 
 Version 1.22
     * Added a new HTML tag list that can be used for validation. See "Validate HTML tags" above in the section "Usage".
@@ -362,8 +365,9 @@ begin
 
   // Create a sorted list of added tags
   FHTMLTagList := TStringList.Create;
-  FHTMLTagList.Sorted := True;
   FHTMLTagList.Assign(AList);
+  FHTMLTagList.CaseSensitive := False;
+  FHTMLTagList.Sort;
 end;
 
 function TEmmet.AddTag(s: string; const sAttribute, sId, sClass, sText: string;
@@ -1891,7 +1895,7 @@ begin
   // Otherwise, return true.
   if not Assigned(FHTMLTagList) then Exit;
 
-  Result := FHTMLTagList.Find(Lowercase(s),n);
+  Result := FHTMLTagList.Find(s,n);
 end;
 
 function TEmmet.PostProcessFilters(s: string): string;
