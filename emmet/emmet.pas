@@ -367,7 +367,7 @@ begin
   FHTMLTagList := TStringList.Create;
   FHTMLTagList.Assign(AList);
   FHTMLTagList.CaseSensitive := False;
-  FHTMLTagList.Sort;
+  FHTMLTagList.Sorted := True;
 end;
 
 function TEmmet.AddTag(s: string; const sAttribute, sId, sClass, sText: string;
