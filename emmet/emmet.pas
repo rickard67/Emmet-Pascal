@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      22-Aug-2022
-Version:   1.23
+Date:      23-Dec-2022
+Version:   1.24
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -47,6 +47,9 @@ Validate HTML tags
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.24
+    * Fixed a few class issues.
 
 Version 1.23
     * Minor change for faster sorting of the HTML tag validation list and no case check.
@@ -393,7 +396,7 @@ begin
       if w <> '' then
       begin
         if not FExpandOptions.AlwaysAddNewLine and (FTagInlineLevel.IndexOf(s) >= 0) then
-          w := w + '>' + '<span ' + sClass + '></span>'
+          w := w + #32 + sClass + '>'
         else
           w := w + #32 + sClass;
       end
@@ -1084,9 +1087,11 @@ begin
       if (sClass <> '') then
       begin
         if (ch <> '/') then
-          Insert(#32 + sClass,Result,i)
+          Insert(#32 + sClass, Result, i)
+        else if (i > 1) and (s[i-1] <> #32) then
+          Insert(#32 + sClass + #32, Result, i)
         else
-          Insert(sClass + #32,Result,i);
+          Insert(sClass + #32, Result, i);
       end;
       Exit;
     end;
@@ -1408,9 +1413,9 @@ begin
   end
   else
   begin
-    if not FExpandOptions.AlwaysAddNewLine and (FTagInlineLevel.IndexOf(s) >= 0) and (s <> 'span') then
-      Result := '<' + s + '>' + '<span ' + sClass + '></span>'
-    else
+//    if not FExpandOptions.AlwaysAddNewLine and (FTagInlineLevel.IndexOf(s) >= 0) and (s <> 'span') then
+//      Result := '<' + s + '>' + '<span ' + sClass + '></span>'
+//    else
       Result := '<' + s + #32 + sClass + '>';
   end;
 end;
