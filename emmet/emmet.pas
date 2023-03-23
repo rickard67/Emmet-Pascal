@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      23-Dec-2022
-Version:   1.24
+Date:      23-mar-2023
+Version:   1.25
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -47,6 +47,9 @@ Validate HTML tags
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.25
+    * Expressions starting with an &lt; character, like <body, should not be expanded.
 
 Version 1.24
     * Fixed a few class issues.
@@ -532,6 +535,7 @@ function TEmmet.ExpandAbbreviation(AString: string; const ASyntax, ASelText:
 var
   typ: string;
 begin
+  Result := '';
   FLoremStart := True;
   FLoremText := '';
   FLoremNr := 0;
@@ -551,6 +555,8 @@ begin
 
   FExtends := FAbbreviations.ReadString(FSyntax,'extends','');
   typ := FAbbreviations.ReadString(FSyntax,'type','');
+
+  if (typ = 'xml') and (Length(AString) > 0) and (AString[1] = '<') then Exit;
 
   FSyntaxKey := 'abbreviations-' + FSyntax;
   FExtendsKey := 'abbreviations-' + FExtends;
