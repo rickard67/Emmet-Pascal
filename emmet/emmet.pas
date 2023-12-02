@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      23-mar-2023
-Version:   1.25
+Date:      30-April-2023
+Version:   1.26
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -47,6 +47,9 @@ Validate HTML tags
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.26
+    * Fixed issue with grouping and multiplier.
 
 Version 1.25
     * Expressions starting with an &lt; character, like <body, should not be expanded.
@@ -282,8 +285,7 @@ type
         Integer): string;
     function ProcessTagGroup(const AString: string; const index: Integer; out ipos:
         Integer; const indent: Integer): string;
-    function ProcessTagMultiplication(const AString: string; const index, indent:
-        Integer): string;
+    function ProcessTagMultiplication(const AString: string; const index, indent, AMultPos: Integer): string;
     procedure ResolveCursorPositions(var src: string);
     function ResolveTabStopsIndex(s: string): string;
     function WrapLoremText(const s: string; const indent: Integer): string;
@@ -687,7 +689,7 @@ end;
 function TEmmet.ExpandTagAbbrev(sAbbrev: string; const nIndent: Integer = 0):
     string;
 var
-  n,indx,npos,ind: Integer;
+  m,n,indx,npos,ind: Integer;
   ch: Char;
   indent: Integer;
   tagListCount: Integer;
@@ -982,6 +984,7 @@ begin
 
       '*': // multiplication operator
       begin
+        m := indx;
         Inc(indx);
         while (indx <= Length(sAbbrev)) and CharInSet(sAbbrev[indx], ['0'..'9']) do Inc(indx);
         if (indx <= Length(sAbbrev)) and (sAbbrev[indx] = '>') then
@@ -989,7 +992,7 @@ begin
           Inc(indx);
           while (indx <= Length(sAbbrev)) and not CharInSet(sAbbrev[indx], ['>','^']) do Inc(indx);
         end;
-        s := s + ProcessTagMultiplication(sAbbrev,npos,indent);
+        s := s + ProcessTagMultiplication(sAbbrev,npos,indent,m);
         npos := indx;
         Dec(indx);
       end;
@@ -2117,7 +2120,7 @@ function TEmmet.ProcessTagGroup(const AString: string; const index: Integer;
     out ipos: Integer; const indent: Integer): string;
 var
   np: Integer;
-  TagListCount: Integer;
+  TagListCount,n: Integer;
 begin
   Result := '';
   TagListCount := FTagList.Count;
@@ -2136,9 +2139,10 @@ begin
   if (ipos <= Length(AString)) and (AString[ipos] = '*') then
   begin
     // multiply group
+    n := ipos;
     Inc(ipos);
     while (ipos <= Length(AString)) and CharInSet(AString[ipos], ['0'..'9']) do Inc(ipos);
-    Result := Result + ProcessTagMultiplication(AString,index,indent);
+    Result := Result + ProcessTagMultiplication(AString,index,indent,n);
   end
   else
   begin
@@ -2157,8 +2161,7 @@ begin
   Dec(ipos);
 end;
 
-function TEmmet.ProcessTagMultiplication(const AString: string; const index,
-    indent: Integer): string;
+function TEmmet.ProcessTagMultiplication(const AString: string; const index, indent, AMultPos: Integer): string;
 var
   i,n,num,numlen: Integer;
   nStart,nIndex,nInc: Integer;
@@ -2261,7 +2264,7 @@ var
 begin
   Result := '';
   bAddSelection := False;
-  n := Pos('*',AString);
+  n := Pos('*',AString,AMultPos);
   nInc := 1;
   nStart := 1;
 
