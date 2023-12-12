@@ -1678,11 +1678,11 @@ var
   n: Integer;
 begin
   Result := 1;
-  n := Pos(#13,s);
+  n := Pos(#10,s);
   while n > 0 do
   begin
     Inc(Result);
-    n := PosEx(#13,s,n+1);
+    n := PosEx(#10,s,n+1);
   end;
 end;
 
