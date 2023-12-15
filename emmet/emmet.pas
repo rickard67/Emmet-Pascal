@@ -1669,16 +1669,8 @@ begin
 end;
 
 function TEmmet.GetLineCount(const s: string): Integer;
-var
-  n: Integer;
 begin
-  Result := 1;
-  n := Pos(#10,s);
-  while n > 0 do
-  begin
-    Inc(Result);
-    n := PosEx(#10,s,n+1);
-  end;
+  Result := s.CountChar(#10) + 1;
 end;
 
 function TEmmet.GetSnippetNames(const ASyntax: string; const AList:
