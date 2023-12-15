@@ -1,8 +1,8 @@
 (*--------------------------------------------------------------------------------------------
 Unit Name: Emmet
 Author:    Rickard Johansson  (https://www.rj-texted.se/Forum/index.php)
-Date:      30-April-2023
-Version:   1.26
+Date:      12-Dec-2023
+Version:   1.28
 Purpose:   Expand Emmet abbreviations and wrap selected text
 
 Usage:
@@ -47,6 +47,12 @@ Validate HTML tags
 --------------------------------------------------------------------------------------------*)
 (*------------------------------------------------------------------------------------------
 Version updates and changes
+
+Version 1.28
+    * Some additional minor code changes and fixes.
+
+Version 1.27
+    * Fixed issues with wrap with abbreviation.
 
 Version 1.26
     * Fixed issue with grouping and multiplier.
@@ -275,17 +281,20 @@ type
     function ExtractFilters(s: string; const ASyntax: string): string;
     function ExtractUserAttributes(const sAttribute: string): string;
     function FormatSelection(const s: string; const ind: Integer): string;
+    function GetLineCount(const s: string): Integer;
     function HandleLorem(const s: string; const indent: Integer): Integer;
     function HasTabStopsAndCursors(const src: string): Boolean;
     function InsertLoremString(const sub, s: string; const indent: Integer; const bRemoveBrackets: Boolean = False): string;
     function InsertSelection(s: string; const bOneLine: Boolean = False): string;
     function IsLoremValid(const s: string): Boolean;
+    procedure LineTrim(var s: string);
     function PostProcessFilters(s: string): string;
     function ProcessTagAbbrev(const AString: string; const index, len, indent:
         Integer): string;
     function ProcessTagGroup(const AString: string; const index: Integer; out ipos:
         Integer; const indent: Integer): string;
     function ProcessTagMultiplication(const AString: string; const index, indent, AMultPos: Integer): string;
+    function ReplaceEscapeCharacters(const s: string): string;
     procedure ResolveCursorPositions(var src: string);
     function ResolveTabStopsIndex(s: string): string;
     function WrapLoremText(const s: string; const indent: Integer): string;
@@ -681,9 +690,7 @@ begin
   begin
     Result := StringReplace(Result, ':', ': ', []);
   end;
-
-  Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-  Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+  Result := ReplaceEscapeCharacters(Result);
 end;
 
 function TEmmet.ExpandTagAbbrev(sAbbrev: string; const nIndent: Integer = 0):
@@ -1030,12 +1037,15 @@ begin
 
   Dec(FRecursiveIndex);
   if (FRecursiveIndex = 0) and (FSelection <> '') then
-    Result := InsertSelection(s)
+    Result := InsertSelection(s, GetLineCount(FSelection) = 1)
   else
     Result := s;
 
   if (FTagList.Count = 0) and (indent = 0) then
     Result := Trim(Result);
+
+  if (FRecursiveIndex = 0) then
+    LineTrim(Result);
 
   if not FExpandOptions.AddSlashToEmptyTags then
   begin
@@ -1312,9 +1322,7 @@ begin
   sValue := GetSnippet(s);
   if sValue <> '' then
   begin
-    Result := sValue;
-    Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-    Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+    Result := ReplaceEscapeCharacters(sValue);
     Exit;
   end;
 
@@ -1348,14 +1356,12 @@ begin
     if (Length(sn) > 0) and (sn[1] = '<') then
     begin
       Result := st + InsertUserAttribute(sn,sAttr,sId,sClass) + sText;
-      Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-      Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+      Result := ReplaceEscapeCharacters(Result);
       if not bDone then AddToTagList(sn,'');
       Exit;
     end;
     Result := st + sn + sText;
-    Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-    Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+    Result := ReplaceEscapeCharacters(Result);
     if not bDone then AddToTagList(sn,'');
     Exit;
   end;
@@ -1363,8 +1369,7 @@ begin
   if (sAttr <> '') or (sId <> '') or (sClass <> '') then
   begin
     Result := AddTag(sn,sAttr,sId,sClass,sText,indent);
-    Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-    Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+    Result := ReplaceEscapeCharacters(Result);
     Exit;
   end;
 
@@ -1387,8 +1392,7 @@ begin
   if not IsTagValid(s) then Exit;
 
   Result := AddTag(s,'','','',sText,indent);
-  Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-  Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+  Result := ReplaceEscapeCharacters(Result);
 end;
 
 function TEmmet.CreateTagAndClass(var s: string; const sClass: string): string;
@@ -1457,8 +1461,7 @@ begin
   if Result = '' then Exit;
 
   Result := StringReplace(Result, ':', ': ', []);
-  Result := StringReplace(Result, '\n', #13#10, [rfReplaceAll]);
-  Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
+  Result := ReplaceEscapeCharacters(Result);
 end;
 
 function TEmmet.ExtractFilters(s: string; const ASyntax: string): string;
@@ -1663,6 +1666,11 @@ begin
     ls.Free;
   end;
   Result := AList.Count > 0;
+end;
+
+function TEmmet.GetLineCount(const s: string): Integer;
+begin
+  Result := s.CountChar(#10) + 1;
 end;
 
 function TEmmet.GetSnippetNames(const ASyntax: string; const AList:
@@ -1910,6 +1918,18 @@ begin
   if not Assigned(FHTMLTagList) then Exit;
 
   Result := FHTMLTagList.Find(s,n);
+end;
+
+procedure TEmmet.LineTrim(var s: string);
+var
+  len: Integer;
+begin
+  if GetLineCount(s) = 2 then
+  begin
+    len := Length(s);
+    if s[len] = #10 then
+      s := Copy(s,1,len-2);
+  end;
 end;
 
 function TEmmet.PostProcessFilters(s: string): string;
@@ -2318,6 +2338,12 @@ begin
         FLoremText := CreateLoremString(FLoremNr);
     end;
   end;
+end;
+
+function TEmmet.ReplaceEscapeCharacters(const s: string): string;
+begin
+  Result := StringReplace(s, '\n', #13#10, [rfReplaceAll]);
+  Result := StringReplace(Result, '\t', #9, [rfReplaceAll]);
 end;
 
 procedure TEmmet.ResolveCursorPositions(var src: string);
