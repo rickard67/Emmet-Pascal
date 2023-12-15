@@ -1,2 +1,6 @@
 lib/
 backup/
+demo
+project1
+*.lps
+*.exe
