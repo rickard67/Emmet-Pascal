@@ -5,8 +5,7 @@ unit Unit1;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  StrUtils, Math;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls;
 
 type
 
@@ -38,7 +37,7 @@ uses EmmetHelper;
 procedure TForm1.Edit1Change(Sender: TObject);
 var
   N: integer;
-  Abr: string;
+  Abr: UnicodeString;
 begin
   EmmetFindAbbrev(Edit1.Text, Length(Edit1.Text), N, Abr);
   Edit2.Text:= Abr;
